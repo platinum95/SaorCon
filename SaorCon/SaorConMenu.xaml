@@ -1,0 +1,17 @@
+﻿<Window x:Class="SaorCon.SaorConMenu"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SaorCon"
+        mc:Ignorable="d"
+        Title="SaorConMenu" Height="Auto" Width="Auto"
+        SizeToContent="WidthAndHeight"
+        ShowInTaskbar="False"
+		AllowsTransparency="True"
+		WindowStyle="None">
+    <Border x:Name="menuBorder" BorderThickness="1 1 0 0" BorderBrush="#FF444444" Background="#FF333333" >
+    <StackPanel x:Name="mainStack" Height="Auto" Width="Auto" Orientation="Vertical" CanVerticallyScroll="True" MaxHeight="600"/>
+    </Border>
+
+</Window>

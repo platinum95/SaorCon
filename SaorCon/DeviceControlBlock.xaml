@@ -1,0 +1,85 @@
+﻿<UserControl x:Class="SaorCon.DeviceControlBlock"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SaorCon"
+             mc:Ignorable="d"
+			 Height="Auto" Width="350">
+
+    <UserControl.Resources>
+        <Style TargetType="Image">
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel x:Name="mainStack"  Height="Auto" Width="Auto" Orientation="Vertical" >
+        
+        <Grid Height="50">
+            <TextBlock x:Name="device_name" Text="Device Name" Foreground="White" Grid.Row="0" Padding="10, 0, 0, 0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="15"/>
+        </Grid>
+
+        <Grid x:Name="ConnectedGrid" Margin="0 -20 0 0" Height="75" Width="Auto" Visibility="Visible">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="2*" />
+                <RowDefinition Height="1*" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1*" />
+                    <ColumnDefinition Width="7*" />
+                </Grid.ColumnDefinitions>
+                <Grid Margin="14 10 0 10">
+                    <Image x:Name="anc_level_icon_hi" Source="icons/LevelIcon_Hi.ico" Grid.Column="0" />
+                    <Image x:Name="anc_level_icon_low" Source="icons/LevelIcon_Low.ico" Grid.Column="0" />
+                    <Image x:Name="anc_level_icon_off" Source="icons/LevelIcon_Off.ico" Grid.Column="0" />
+                </Grid>
+                <Slider 
+                    x:Name="anc_slider"
+                    Grid.Column="1"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    Maximum="2"
+                    Value="1"
+                    Margin="10 0 10 0"
+                    ValueChanged="anc_slider_ValueChanged"
+                    TickFrequency="1"
+                    TickPlacement="BottomRight"
+                    IsSelectionRangeEnabled="True"
+                    IsSnapToTickEnabled="True"/>
+            </Grid>
+            <TextBlock 
+                x:Name="batteryLevel"
+                Foreground="White"
+                Text="Battery Level: -1"
+                Grid.Row="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0 0 0 0"
+                FontSize="15"/>
+        </Grid>
+
+        <Grid x:Name="DisconnectedGrid" Margin="0 -20 0 0" Height="50" Width="Auto" >
+            <!--<TextBlock 
+                Text="Disconnected"
+                Foreground="White"
+                FontSize="15"
+                HorizontalAlignment="Left"
+                Margin="40 0"
+                VerticalAlignment="Top"/>-->
+            <Button
+                x:Name="connectButton"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Right"
+                Width="150"
+                Height="30"
+                Margin="0 0 15 0"
+                Click="OnConnectButtonClick" >
+                Connect
+            </Button>
+        </Grid>
+    </StackPanel>
+
+
+</UserControl>
