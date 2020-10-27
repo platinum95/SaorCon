@@ -51,7 +51,7 @@ namespace SaorCon
             m_deviceWatcher.Added += OnBluetoothDeviceAdded;
             m_deviceWatcher.Removed += OnBluetoothDeviceRemoved;
             m_deviceWatcher.Start();
-            m_devices.Add( new TestBoseDevice() );
+         //   m_devices.Add( new TestBoseDevice() );
         }
 
         private void OnBluetoothDeviceAdded( DeviceWatcher sender, DeviceInformation device )
@@ -98,18 +98,6 @@ namespace SaorCon
             base.OnClosing( e );
         }
 
-        public static readonly RoutedUICommand ExitSaorCon = new RoutedUICommand( "Exit", "ExitSaorCon", typeof( MainWindow ) );
-
-        private void ExitSaorCon_CanExecute( object sender, CanExecuteRoutedEventArgs e )
-        {
-            e.CanExecute = true;
-        }
-
-        private void ExitSaorCon_Executed( object sender, ExecutedRoutedEventArgs e )
-        {
-            System.Windows.Application.Current.Shutdown();
-        }
-
         private void onQuickMenuClosed( object sender, EventArgs e )
         {
             m_quickMenu = null;
@@ -118,5 +106,48 @@ namespace SaorCon
         private SaorConMenu             m_quickMenu;
         private List<IBoseDevice>       m_devices = new List<IBoseDevice>();
         private DeviceWatcher           m_deviceWatcher;
-    }    
+    }
+
+    // TODO - move commands out to own files
+    public abstract class CommandBase<T> : MarkupExtension, ICommand
+        where T : class, ICommand, new()
+    {
+        private static T s_command { get; } = new T();
+
+        public event EventHandler CanExecuteChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public virtual bool CanExecute( object parameter )
+        {
+            return true;
+        }
+
+        public override object ProvideValue( IServiceProvider serviceProvider )
+        {
+            return s_command;
+        }
+
+        public abstract void Execute( object parameter );
+    }
+
+    public class ExitCommand : CommandBase<ExitCommand>
+    {
+        public override void Execute( object parameter )
+        {
+            System.Windows.Application.Current.Shutdown();
+        }
+    }
+
+    public class ShowSettingsCommand : CommandBase<ShowSettingsCommand>
+    {
+        public override void Execute( object parameter )
+        {
+            new SettingsWindow().Show();
+        }
+    }
+
+
 }

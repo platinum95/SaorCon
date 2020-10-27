@@ -22,6 +22,8 @@ namespace SaorCon
     {
 
         public string DeviceId { get => m_device.DeviceId; }
+        public bool IsExpanded { get; private set; } = false;
+
         public DeviceControlBlock( IBoseDevice device )
         {
             InitializeComponent();
@@ -50,10 +52,10 @@ namespace SaorCon
 
         public void Collapse()
         {
-            if ( !m_expanded )
+            if ( !IsExpanded )
                 return;
 
-            m_expanded = false;
+            IsExpanded = false;
             ConnectedGrid.Visibility = Visibility.Collapsed;
             DisconnectedGrid.Visibility = Visibility.Collapsed;
 
@@ -62,10 +64,10 @@ namespace SaorCon
 
         public void Expand()
         {
-            if ( m_expanded )
+            if ( IsExpanded )
                 return;
 
-            m_expanded = true;
+            IsExpanded = true;
             if ( m_device.Connected )
                 ConnectedGrid.Visibility = Visibility.Visible;
             else
@@ -77,7 +79,7 @@ namespace SaorCon
         protected override void OnMouseEnter( MouseEventArgs e )
         {
             base.OnMouseEnter( e );
-            if ( m_expanded )
+            if ( IsExpanded )
                 this.Background = SelectedHover;
             else
                 this.Background = DarkHover;
@@ -89,7 +91,7 @@ namespace SaorCon
 
             if ( IsMouseOver )
                 return;
-            if ( m_expanded )
+            if ( IsExpanded )
                 this.Background = SelectedBase;
             else
                 this.Background = DarkBase;
@@ -135,14 +137,14 @@ namespace SaorCon
                 switch ( value )
                 {
                     case BoseMessage.ConnectAckMessage:
-                        if ( m_expanded )
+                        if ( IsExpanded )
                         {
                             DisconnectedGrid.Visibility = Visibility.Collapsed;
                             ConnectedGrid.Visibility = Visibility.Visible;
                         }
                         break;
                     case BoseMessage.DisconnectMessage:
-                        if ( m_expanded )
+                        if ( IsExpanded )
                         {
                             ConnectedGrid.Visibility = Visibility.Collapsed;
                             DisconnectedGrid.Visibility = Visibility.Visible;
@@ -182,7 +184,6 @@ namespace SaorCon
 
         private IDisposable m_unsubscriber;
         private IBoseDevice m_device;
-        private bool m_expanded = false;
 
         // TODO - implement actual themes
         private SolidColorBrush DarkBase = new SolidColorBrush( Color.FromArgb( 0xFF, 0x2A, 0x2A, 0x2A ) );

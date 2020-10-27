@@ -1,0 +1,38 @@
+﻿<Window x:Class="SaorCon.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SaorCon"
+        mc:Ignorable="d"
+        Title="SaorCon" Height="Auto" Width="350"
+        SizeToContent="Height"
+        Background="#FFE5E5E5">
+
+    <StackPanel Height="Auto">
+        <TabControl Background="White" Height="Auto" HorizontalAlignment="Stretch" Margin="10, 10, 10, 10" Padding="10">
+            <TabItem Header="Settings" Height="Auto">
+                <Grid Height="Auto">
+                    <Border BorderBrush="#FFCCCCCC" Height="40" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Padding="10">
+                        <CheckBox x:Name="StartOnBootSelection" Content="Enable at boot" Height="Auto" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+            <TabItem Header="About" Height="Auto">
+                <Grid Height="Auto">
+                    <Border BorderBrush="#FFCCCCCC" Height="Auto" BorderThickness="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Padding="10">
+                        <StackPanel>
+                            <TextBlock x:Name="AppName" Text="SaorCon"/>
+                            <TextBlock>
+                                Source:
+                                <Hyperlink x:Name="RepoHyperlink"><TextBlock x:Name="RepoLinkText"/></Hyperlink>
+                            </TextBlock>
+                            <TextBlock x:Name="CopyrightText" Text="© Peter Mullen 2019"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+        <Button Click="OnOkButtonClicked" Content="OK" Width="70" Height="25" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 0 30 10"/>
+    </StackPanel>
+</Window>

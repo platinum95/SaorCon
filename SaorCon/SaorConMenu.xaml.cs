@@ -23,7 +23,6 @@ namespace SaorCon
         public SaorConMenu( List<IBoseDevice> devices )
         {
             InitializeComponent();
-            this.SizeChanged += windowSizeChanged;
             m_devices = devices;
             
             Topmost = true;
@@ -31,6 +30,10 @@ namespace SaorCon
             {
                 var controlBlock = new DeviceControlBlock( device );
                 controlBlock.MouseLeftButtonUp += ChildClicked;
+                
+                if ( m_devices.Count == 1 )
+                    controlBlock.Expand();
+                
                 mainStack.Children.Add( controlBlock );
             }
         }
@@ -65,13 +68,9 @@ namespace SaorCon
 
         private void ChildClicked( object sender, EventArgs e )
         {
-            // TODO - check if we're already expanded
-            // Collapse all blocks
-            foreach ( var block in mainStack.Children )
-            {
-                if ( block is DeviceControlBlock )
-                    ((DeviceControlBlock)block).Collapse();
-            }
+            // Collapse all currently expanded blocks
+            foreach ( var block in m_controlBlocks.Where( x => x != sender && x.IsExpanded ) )
+                block.Collapse();
 
             ((DeviceControlBlock)sender).Expand();
         }
@@ -82,11 +81,8 @@ namespace SaorCon
             this.Close();
         }
 
-        private void windowSizeChanged( object sender, EventArgs e )
-        {
-
-        }
-
+        // TODO - change list type if we ever add anything other than control blocks to the stackpanel
+        private IList<DeviceControlBlock> m_controlBlocks { get => (IList<DeviceControlBlock>)mainStack.Children; }
         private List<IBoseDevice> m_devices;
     }
 }

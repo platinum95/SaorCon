@@ -109,5 +109,14 @@ namespace SaorCon.Properties {
                 return ((System.Drawing.Icon)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to https://github.com/platinum95/SaorCon.
+        /// </summary>
+        internal static string SourceRepo {
+            get {
+                return ResourceManager.GetString("SourceRepo", resourceCulture);
+            }
+        }
     }
 }
