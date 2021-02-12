@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +16,12 @@ using System.Windows.Shapes;
 
 namespace SaorCon
 {
+    public enum BatteryIconStates2
+    {
+        Full,
+        Mid,
+        Low
+    };
     /// <summary>
     /// Interaction logic for DeviceControlBlock.xaml
     /// </summary>
@@ -23,29 +30,73 @@ namespace SaorCon
 
         public string DeviceId { get => m_device.DeviceId; }
         public bool IsExpanded { get; private set; } = false;
+        public string BatteryLevel {
+            get
+            {
+                return $"{( ( m_device != null && m_device.Connected ) ? m_device.BatteryLevel : Convert.ToInt16( -1 ) )}%";
+            }
+            set
+            {
+                m_batteryLevel = Convert.ToInt16( value );
+                //OnPropertyChanged( nameof( BatteryLevel ) );
+            }
+        }
+
+        private Int16 m_batteryLevel;
+        public enum BatteryIconStates
+        {
+            Full,
+            Mid,
+            Low
+        };
+        public BatteryIconStates BatteryIconState {
+            get
+            {
+                if( m_device != null && m_device.SoftConnect )
+                {
+                    var batteryLevel = m_device.BatteryLevel;
+                    if ( batteryLevel < 30 )
+                        return BatteryIconStates.Low;
+                    else if ( batteryLevel < 70 )
+                        return BatteryIconStates.Mid;
+                    else
+                        return BatteryIconStates.Full;
+                }
+                return BatteryIconStates.Low;
+            }
+        }
 
         public DeviceControlBlock( IBoseDevice device )
         {
+            DataContext = this;
             InitializeComponent();
+            BatteryLevelText.Text = "";
 
             device_name.Text = device.DeviceName;
             anc_slider.SelectionStart = 0;
 
             ConnectedGrid.Visibility = Visibility.Collapsed;
             DisconnectedGrid.Visibility = Visibility.Collapsed;
+            m_device = device;
             if ( device.SoftConnect )
             {
-                batteryLevel.Text = $"Battery Level: {device.BatteryLevel}%";
+                BatteryLevelText.Text = $"{device.BatteryLevel}%";
                 anc_slider.Value = device.AncLevel;
                 anc_slider.SelectionEnd = device.AncLevel;
 
                 setAncLevelIcon( device.AncLevel );
+                SetBatteryIcon();
             }
-            m_device = device;
+            
             m_unsubscriber = m_device.Subscribe( this );
+
+            MouseEventHandler hoverStateHandler = delegate { Background = GetBackgroundColour(); };
+            MouseEnter += hoverStateHandler;
+            MouseLeave += hoverStateHandler;
         }
 
-        ~DeviceControlBlock()
+        // TODO - this should probably be in some kind of event handler
+        public void Cleanup()
         {
             m_unsubscriber.Dispose();
         }
@@ -55,48 +106,29 @@ namespace SaorCon
             if ( !IsExpanded )
                 return;
 
+            m_isAlone = false;
             IsExpanded = false;
             ConnectedGrid.Visibility = Visibility.Collapsed;
             DisconnectedGrid.Visibility = Visibility.Collapsed;
 
-            this.Background = DarkBase;
+            Background = ThemeManager.BackgroundBase;
         }
 
-        public void Expand()
+        public void Expand( bool isAlone )
         {
             if ( IsExpanded )
                 return;
 
+            m_isAlone = isAlone;
             IsExpanded = true;
             if ( m_device.Connected )
                 ConnectedGrid.Visibility = Visibility.Visible;
             else
                 DisconnectedGrid.Visibility = Visibility.Visible;
 
-            this.Background = SelectedBase;
+            if ( !m_isAlone )
+                this.Background = ThemeManager.SelectedBase;
         }
-
-        protected override void OnMouseEnter( MouseEventArgs e )
-        {
-            base.OnMouseEnter( e );
-            if ( IsExpanded )
-                this.Background = SelectedHover;
-            else
-                this.Background = DarkHover;
-        }
-
-        protected override void OnMouseLeave( MouseEventArgs e )
-        {
-            base.OnMouseEnter( e );
-
-            if ( IsMouseOver )
-                return;
-            if ( IsExpanded )
-                this.Background = SelectedBase;
-            else
-                this.Background = DarkBase;
-        }
-
 
         private void anc_slider_ValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
         {
@@ -126,6 +158,28 @@ namespace SaorCon
             else
                 anc_level_icon_hi.Visibility = Visibility.Visible;
         }
+
+        private void SetBatteryIcon()
+        {
+            BatteryLevelHigh.Visibility = Visibility.Hidden;
+            BatteryLevelMid.Visibility = Visibility.Hidden;
+            BatteryLevelLow.Visibility = Visibility.Hidden;
+
+            var batteryLevel = m_device.BatteryLevel;
+
+            if (batteryLevel < 30)
+            {
+                BatteryLevelLow.Visibility = Visibility.Visible;
+            }
+            else if (batteryLevel < 70)
+            {
+                BatteryLevelMid.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                BatteryLevelHigh.Visibility = Visibility.Visible;
+            }
+        }
         
         
         public void OnNext( BoseMessage value )
@@ -151,10 +205,16 @@ namespace SaorCon
                         }
                         break;
                     case BoseMessage.BatteryLevelMessage:
-                        batteryLevel.Text = $"Battery Level: {m_device.BatteryLevel}%";
+                        BatteryLevelText.Text = $"{m_device.BatteryLevel}%";
+                        SetBatteryIcon();
                         break;
                     case BoseMessage.AncLevelMessage:
                         anc_slider.SelectionEnd = m_device.AncLevel;
+                        if ( !m_ancSet )
+                        {
+                            anc_slider.Value = m_device.AncLevel;
+                            m_ancSet = true;
+                        }
                         break;
                 }
             } );
@@ -182,13 +242,18 @@ namespace SaorCon
             } );
         }
 
-        private IDisposable m_unsubscriber;
-        private IBoseDevice m_device;
+        private SolidColorBrush GetBackgroundColour()
+        {
+            if ( m_isAlone || IsExpanded == false )
+                return IsMouseOver ? ThemeManager.BackgroundHover : ThemeManager.BackgroundBase;
 
-        // TODO - implement actual themes
-        private SolidColorBrush DarkBase = new SolidColorBrush( Color.FromArgb( 0xFF, 0x2A, 0x2A, 0x2A ) );
-        private SolidColorBrush DarkHover = new SolidColorBrush( Color.FromArgb( 0xFF, 0x3A, 0x3A, 0x3A ) );
-        private SolidColorBrush SelectedBase = new SolidColorBrush( Color.FromArgb( 0xFF, 0x51, 0x51, 0x51 ) );
-        private SolidColorBrush SelectedHover = new SolidColorBrush( Color.FromArgb( 0xFF, 0x5A, 0x5A, 0x5A ) );
+            return IsMouseOver ? ThemeManager.SelectedHover : ThemeManager.SelectedBase;
+        }
+
+        public ImageSource      BatteryIconSource { get; private set; }
+        private bool            m_isAlone;
+        private IDisposable     m_unsubscriber;
+        private IBoseDevice     m_device;
+        private bool            m_ancSet = false;
     }
 }

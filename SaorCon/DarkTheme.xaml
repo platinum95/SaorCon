@@ -1,0 +1,17 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:SaorCon">
+   
+    
+    <Color x:Key="BackgroundBase" A="0xFF" R="0x2A" G="0x2A" B="0x2A"/>
+    <Color x:Key="BackgroundHover" A="0xFF" R="0x3A" G="0x3A" B="0x3A"/>
+    <Color x:Key="SelectedBase" A="0xFF" R="0x51" G="0x51" B="0x51"/>
+    <Color x:Key="SelectedHover" A="0xFF" R="0x5A" G="0x5A" B="0x5A"/>
+    <Color x:Key="TextColour" A="0xFF" R="0xFF" G="0xFF" B="0xFF"/>
+    
+    <SolidColorBrush x:Key="BackgroundBaseBrush" Color="{StaticResource BackgroundBase}" />
+    <SolidColorBrush x:Key="BackgroundHoverBrush" Color="{StaticResource BackgroundHover}" />
+    <SolidColorBrush x:Key="SelectedBaseBrush" Color="{StaticResource SelectedBase}" />
+    <SolidColorBrush x:Key="SelectedHoverBrush" Color="{StaticResource SelectedHover}" />
+
+</ResourceDictionary>

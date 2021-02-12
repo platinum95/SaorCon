@@ -73,6 +73,16 @@ namespace SaorCon.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
         /// </summary>
+        internal static System.Drawing.Icon FullBattery {
+            get {
+                object obj = ResourceManager.GetObject("FullBattery", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
+        /// </summary>
         internal static System.Drawing.Icon icon {
             get {
                 object obj = ResourceManager.GetObject("icon", resourceCulture);
@@ -106,6 +116,26 @@ namespace SaorCon.Properties {
         internal static System.Drawing.Icon LevelIcon_Off {
             get {
                 object obj = ResourceManager.GetObject("LevelIcon_Off", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
+        /// </summary>
+        internal static System.Drawing.Icon LowBattery {
+            get {
+                object obj = ResourceManager.GetObject("LowBattery", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
+        /// </summary>
+        internal static System.Drawing.Icon MidBattery {
+            get {
+                object obj = ResourceManager.GetObject("MidBattery", resourceCulture);
                 return ((System.Drawing.Icon)(obj));
             }
         }

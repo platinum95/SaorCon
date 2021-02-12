@@ -158,6 +158,7 @@ namespace SaorCon
 
         private IAsyncResult SendCommand( BoseCommand command, byte[] payload = null )
         {
+            // TODO - these should be sent to a fixed-size buffer to avoid a barrage of requests
             if ( !bluetoothClient.Connected )
                 throw new Exception();
 
@@ -310,6 +311,7 @@ namespace SaorCon
             SendCommand( BoseCommand.QueryStatusCommand );
             SendCommand( BoseCommand.QueryBatteryCommand );
 
+            m_readTaskCancellation = new CancellationTokenSource();
             var token = m_readTaskCancellation.Token;
             Task.Factory.StartNew( () =>
                 {

@@ -121,6 +121,9 @@
   <data name="AppIcon" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\icons\AppIcon.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="FullBattery" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\icons\FullBattery.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="icon" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\icons\icon.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
@@ -132,6 +135,12 @@
   </data>
   <data name="LevelIcon_Off" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\icons\LevelIcon_Off.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="LowBattery" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\icons\LowBattery.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="MidBattery" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\icons\MidBattery.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="SourceRepo" xml:space="preserve">
     <value>https://github.com/platinum95/SaorCon</value>

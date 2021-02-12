@@ -82,6 +82,7 @@ namespace SaorCon
             {
                 m_quickMenu.Focus();
                 m_quickMenu.Activate();
+                m_quickMenu.Show();
                 return;
             }
 

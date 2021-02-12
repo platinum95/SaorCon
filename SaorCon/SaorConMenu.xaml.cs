@@ -24,7 +24,8 @@ namespace SaorCon
         {
             InitializeComponent();
             m_devices = devices;
-            
+
+            Background = ThemeManager.BackgroundBase;
             Topmost = true;
             foreach ( var device in m_devices )
             {
@@ -32,10 +33,12 @@ namespace SaorCon
                 controlBlock.MouseLeftButtonUp += ChildClicked;
                 
                 if ( m_devices.Count == 1 )
-                    controlBlock.Expand();
-                
+                    controlBlock.Expand( true );
+
                 mainStack.Children.Add( controlBlock );
             }
+
+            
         }
 
         public void OnDeviceAdded( IBoseDevice device )
@@ -68,21 +71,31 @@ namespace SaorCon
 
         private void ChildClicked( object sender, EventArgs e )
         {
+            if ( !( sender is DeviceControlBlock ) )
+                return;
             // Collapse all currently expanded blocks
-            foreach ( var block in m_controlBlocks.Where( x => x != sender && x.IsExpanded ) )
-                block.Collapse();
+            foreach ( var child in mainStack.Children )
+                if ( child is DeviceControlBlock block && block != sender && block.IsExpanded )
+                    block.Collapse();
 
-            ((DeviceControlBlock)sender).Expand();
+            ((DeviceControlBlock)sender).Expand( mainStack.Children.Count == 1 );
         }
 
-        protected override void OnDeactivated( EventArgs e )
+        protected override void OnDeactivated(EventArgs e)
         {
-            base.OnDeactivated( e );
+            base.OnDeactivated(e);
             this.Close();
+            
+            foreach (var child in mainStack.Children )
+            {
+                if ( child is DeviceControlBlock block )
+                {
+                    block.Cleanup();
+                }
+            }
+            mainStack.Children.Clear();
         }
 
-        // TODO - change list type if we ever add anything other than control blocks to the stackpanel
-        private IList<DeviceControlBlock> m_controlBlocks { get => (IList<DeviceControlBlock>)mainStack.Children; }
         private List<IBoseDevice> m_devices;
     }
 }
