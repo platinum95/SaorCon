@@ -1,70 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace SaorCon
 {
-    public enum BatteryIconStates2
-    {
-        Full,
-        Mid,
-        Low
-    };
-    /// <summary>
-    /// Interaction logic for DeviceControlBlock.xaml
-    /// </summary>
     public partial class DeviceControlBlock : UserControl, IObserver<BoseMessage>
     {
-
-        public string DeviceId { get => m_device.DeviceId; }
-        public bool IsExpanded { get; private set; } = false;
-        public string BatteryLevel {
-            get
-            {
-                return $"{( ( m_device != null && m_device.Connected ) ? m_device.BatteryLevel : Convert.ToInt16( -1 ) )}%";
-            }
-            set
-            {
-                m_batteryLevel = Convert.ToInt16( value );
-                //OnPropertyChanged( nameof( BatteryLevel ) );
-            }
-        }
-
-        private Int16 m_batteryLevel;
-        public enum BatteryIconStates
-        {
-            Full,
-            Mid,
-            Low
-        };
-        public BatteryIconStates BatteryIconState {
-            get
-            {
-                if( m_device != null && m_device.SoftConnect )
-                {
-                    var batteryLevel = m_device.BatteryLevel;
-                    if ( batteryLevel < 30 )
-                        return BatteryIconStates.Low;
-                    else if ( batteryLevel < 70 )
-                        return BatteryIconStates.Mid;
-                    else
-                        return BatteryIconStates.Full;
-                }
-                return BatteryIconStates.Low;
-            }
-        }
+        public string   DeviceId        { get => m_device.DeviceId; }
+        public bool     IsExpanded      { get; private set; } = false;
+        public string   BatteryLevel    { get => $"{((m_device != null && m_device.Connected) ? m_device.BatteryLevel : Convert.ToInt16(-1))}%"; }
 
         public DeviceControlBlock( IBoseDevice device )
         {
@@ -85,12 +32,12 @@ namespace SaorCon
                 anc_slider.SelectionEnd = device.AncLevel;
 
                 setAncLevelIcon( device.AncLevel );
-                SetBatteryIcon();
+                setBatteryIcon();
             }
             
             m_unsubscriber = m_device.Subscribe( this );
 
-            MouseEventHandler hoverStateHandler = delegate { Background = GetBackgroundColour(); };
+            MouseEventHandler hoverStateHandler = delegate { Background = getBackgroundColour(); };
             MouseEnter += hoverStateHandler;
             MouseLeave += hoverStateHandler;
         }
@@ -130,7 +77,60 @@ namespace SaorCon
                 this.Background = ThemeManager.SelectedBase;
         }
 
-        private void anc_slider_ValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
+        public void OnNext(BoseMessage value)
+        {
+            if ( !this.IsInitialized )
+            {
+                return;
+            }
+
+            this.Dispatcher.Invoke(() =>
+            {
+                switch ( value )
+                {
+                    case BoseMessage.ConnectAckMessage:
+                        if (IsExpanded)
+                        {
+                            DisconnectedGrid.Visibility = Visibility.Collapsed;
+                            ConnectedGrid.Visibility = Visibility.Visible;
+                        }
+                        break;
+
+                    case BoseMessage.DisconnectMessage:
+                        if (IsExpanded)
+                        {
+                            ConnectedGrid.Visibility = Visibility.Collapsed;
+                            DisconnectedGrid.Visibility = Visibility.Visible;
+                        }
+                        break;
+
+                    case BoseMessage.BatteryLevelMessage:
+                        BatteryLevelText.Text = $"{m_device.BatteryLevel}%";
+                        setBatteryIcon();
+                        break;
+
+                    case BoseMessage.AncLevelMessage:
+                        anc_slider.SelectionEnd = m_device.AncLevel;
+                        if (!m_ancSet)
+                        {
+                            anc_slider.Value = m_device.AncLevel;
+                        }
+                        break;
+                }
+            });
+        }
+
+        public void OnError ( Exception error )
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnCompleted ()
+        {
+            throw new NotImplementedException();
+        }
+
+        private void ancSlider_OnValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
         {
             if ( m_device == null || !m_device.Connected )
             {
@@ -138,6 +138,7 @@ namespace SaorCon
                 return;
             }
 
+            m_ancSet = true;
             var newLevel = Convert.ToInt16( e.NewValue );
             Console.WriteLine( $"Attempting ANC set to {newLevel}" );
             m_device.SetAncLevel( newLevel );
@@ -151,15 +152,15 @@ namespace SaorCon
             anc_level_icon_low.Visibility = Visibility.Hidden;
             anc_level_icon_off.Visibility = Visibility.Hidden;
 
-            if ( level == 0 )
-                anc_level_icon_off.Visibility = Visibility.Visible;
-            else if ( level == 1 )
-                anc_level_icon_low.Visibility = Visibility.Visible;
-            else
-                anc_level_icon_hi.Visibility = Visibility.Visible;
+            switch( level )
+            {
+                case 0: anc_level_icon_off.Visibility = Visibility.Visible; break;
+                case 1: anc_level_icon_low.Visibility = Visibility.Visible; break;
+                default: anc_level_icon_hi.Visibility = Visibility.Visible; break;
+            }
         }
 
-        private void SetBatteryIcon()
+        private void setBatteryIcon()
         {
             BatteryLevelHigh.Visibility = Visibility.Hidden;
             BatteryLevelMid.Visibility = Visibility.Hidden;
@@ -167,11 +168,11 @@ namespace SaorCon
 
             var batteryLevel = m_device.BatteryLevel;
 
-            if (batteryLevel < 30)
+            if ( batteryLevel < 30 )
             {
                 BatteryLevelLow.Visibility = Visibility.Visible;
             }
-            else if (batteryLevel < 70)
+            else if ( batteryLevel < 70 )
             {
                 BatteryLevelMid.Visibility = Visibility.Visible;
             }
@@ -180,57 +181,8 @@ namespace SaorCon
                 BatteryLevelHigh.Visibility = Visibility.Visible;
             }
         }
-        
-        
-        public void OnNext( BoseMessage value )
-        {
-            if ( !this.IsInitialized )
-                return;
-            this.Dispatcher.Invoke( () =>
-            {
-                switch ( value )
-                {
-                    case BoseMessage.ConnectAckMessage:
-                        if ( IsExpanded )
-                        {
-                            DisconnectedGrid.Visibility = Visibility.Collapsed;
-                            ConnectedGrid.Visibility = Visibility.Visible;
-                        }
-                        break;
-                    case BoseMessage.DisconnectMessage:
-                        if ( IsExpanded )
-                        {
-                            ConnectedGrid.Visibility = Visibility.Collapsed;
-                            DisconnectedGrid.Visibility = Visibility.Visible;
-                        }
-                        break;
-                    case BoseMessage.BatteryLevelMessage:
-                        BatteryLevelText.Text = $"{m_device.BatteryLevel}%";
-                        SetBatteryIcon();
-                        break;
-                    case BoseMessage.AncLevelMessage:
-                        anc_slider.SelectionEnd = m_device.AncLevel;
-                        if ( !m_ancSet )
-                        {
-                            anc_slider.Value = m_device.AncLevel;
-                            m_ancSet = true;
-                        }
-                        break;
-                }
-            } );
-        }
 
-        public void OnError( Exception error )
-        {
-            throw new NotImplementedException();
-        }
-
-        public void OnCompleted()
-        {
-            throw new NotImplementedException();
-        }
-
-        private void OnConnectButtonClick( object sender, RoutedEventArgs e )
+        private void connectButton_OnClick( object sender, RoutedEventArgs e )
         {
             var res = ( (BoseDevice)m_device ).Connect();
             connectButton.IsEnabled = false;
@@ -242,15 +194,16 @@ namespace SaorCon
             } );
         }
 
-        private SolidColorBrush GetBackgroundColour()
+        private SolidColorBrush getBackgroundColour()
         {
             if ( m_isAlone || IsExpanded == false )
+            {
                 return IsMouseOver ? ThemeManager.BackgroundHover : ThemeManager.BackgroundBase;
+            }
 
             return IsMouseOver ? ThemeManager.SelectedHover : ThemeManager.SelectedBase;
         }
 
-        public ImageSource      BatteryIconSource { get; private set; }
         private bool            m_isAlone;
         private IDisposable     m_unsubscriber;
         private IBoseDevice     m_device;

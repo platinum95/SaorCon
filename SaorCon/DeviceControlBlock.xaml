@@ -15,7 +15,7 @@
     </UserControl.Resources>
 
     <StackPanel x:Name="mainStack"  Height="Auto" Width="Auto" Orientation="Vertical" >
-        
+
         <Grid Height="50">
             <TextBlock x:Name="device_name" Text="Device Name" Foreground="White" Grid.Row="0" Padding="10, 0, 0, 0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="15"/>
         </Grid>
@@ -28,7 +28,7 @@
                 <ColumnDefinition Width="2*" />
                 <ColumnDefinition Width="0.75*" />
             </Grid.ColumnDefinitions>
-            
+
             <Grid Margin="14 10 0 10">
                 <Image x:Name="anc_level_icon_hi" Source="icons/LevelIcon_Hi.ico" Grid.Column="0" Visibility="Collapsed" />
                 <Image x:Name="anc_level_icon_low" Source="icons/LevelIcon_Low.ico" Grid.Column="0" Visibility="Collapsed" />
@@ -42,7 +42,7 @@
                 Maximum="2"
                 Value="1"
                 Margin="10 0 10 0"
-                ValueChanged="anc_slider_ValueChanged"
+                ValueChanged="ancSlider_OnValueChanged"
                 TickFrequency="1"
                 TickPlacement="BottomRight"
                 IsSelectionRangeEnabled="True"
@@ -68,11 +68,9 @@
                 Width="150"
                 Height="30"
                 Margin="0 0 15 0"
-                Click="OnConnectButtonClick" >
+                Click="connectButton_OnClick" >
                 Connect
             </Button>
         </Grid>
     </StackPanel>
-
-
 </UserControl>

@@ -48,7 +48,6 @@ namespace SaorCon
 
     public interface IBoseDevice : IObservable<BoseMessage>
     {
-
         bool Connected { get; }
         bool SoftConnect { get; }
         Int16 AncLevel { get; }
@@ -117,6 +116,10 @@ namespace SaorCon
         private void Disconnect()
         {
             m_readTaskCancellation.Cancel();
+            m_requestTaskToken?.Cancel();
+
+            m_requestMutex.WaitOne();
+            m_requestMutex.Dispose();
 
             if ( bluetoothStream != null )
             {
@@ -156,11 +159,44 @@ namespace SaorCon
             // TODO - set task to trigger after ~1 second to call this function again if level ACK not received
         }
 
-        private IAsyncResult SendCommand( BoseCommand command, byte[] payload = null )
+        private async Task<IAsyncResult> DelayedRequest( CancellationToken token )
+        {
+            await Task.Delay( 100 );
+            if ( token.IsCancellationRequested )
+            {
+                return Task.CompletedTask;
+            }
+
+            m_requestMutex.WaitOne();
+            var result = SendCommand( m_requestBuffer.Item1, m_requestBuffer.Item2, true );
+            m_requestMutex.ReleaseMutex();
+
+            return Task.FromResult( result );
+        }
+
+        private IAsyncResult SendCommand( BoseCommand command, byte[] payload = null, bool force = false )
         {
             // TODO - these should be sent to a fixed-size buffer to avoid a barrage of requests
             if ( !bluetoothClient.Connected )
                 throw new Exception();
+
+            var currentTime = Convert.ToUInt64( new TimeSpan( DateTime.Now.Ticks ).TotalMilliseconds );
+            if( !force && currentTime < m_requestCooldown )
+            {
+                m_requestCooldown = currentTime + 100;
+
+                m_requestTaskToken.Cancel();
+                m_requestTaskToken = new CancellationTokenSource();
+
+                m_requestMutex.WaitOne();
+                m_requestBuffer = new Tuple<BoseCommand, byte[]>(command, payload);
+                m_requestMutex.ReleaseMutex();
+
+                CancellationToken token = m_requestTaskToken.Token;
+                return Task.Run( async () => { await DelayedRequest(token); }, m_requestTaskToken.Token );
+            }
+
+            m_requestCooldown = currentTime + 100;
 
             var baseCode = BoseCommandCodes[command];
             byte payloadLength = ( payload != null ) ? Convert.ToByte( payload.Length ) : (byte)0;
@@ -307,9 +343,9 @@ namespace SaorCon
 
             bluetoothStream = bluetoothClient.GetStream();
 
-            SendCommand( BoseCommand.ConnectCommand );
-            SendCommand( BoseCommand.QueryStatusCommand );
-            SendCommand( BoseCommand.QueryBatteryCommand );
+            SendCommand( BoseCommand.ConnectCommand, force:true );
+            SendCommand( BoseCommand.QueryStatusCommand, force: true );
+            SendCommand( BoseCommand.QueryBatteryCommand, force: true );
 
             m_readTaskCancellation = new CancellationTokenSource();
             var token = m_readTaskCancellation.Token;
@@ -377,5 +413,10 @@ namespace SaorCon
             { BoseMessage.AncLevelMessage, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
             { BoseMessage.BatteryLevelMessage, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
         };
+
+        private ulong m_requestCooldown = 0;
+        private Tuple<BoseCommand, byte[]> m_requestBuffer;
+        private CancellationTokenSource m_requestTaskToken = new CancellationTokenSource();
+        private Mutex m_requestMutex = new Mutex();
     }
 }

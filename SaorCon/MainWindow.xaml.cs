@@ -1,39 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Configuration;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using Windows.ApplicationModel.Background;
 using Windows.Devices.Bluetooth;
-using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Devices.Enumeration;
-using Windows.Networking.Sockets;
-using Windows.Storage.Streams;
-
-using InTheHand.Net.Bluetooth;
-using InTheHand.Net.Sockets;
-using InTheHand.Net;
 using System.Windows.Markup;
-using System.Threading;
-using Hardcodet.Wpf.TaskbarNotification;
+
 
 namespace SaorCon
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         private static string Qc35Query =
@@ -51,26 +27,32 @@ namespace SaorCon
             m_deviceWatcher.Added += OnBluetoothDeviceAdded;
             m_deviceWatcher.Removed += OnBluetoothDeviceRemoved;
             m_deviceWatcher.Start();
-         //   m_devices.Add( new TestBoseDevice() );
         }
 
         private void OnBluetoothDeviceAdded( DeviceWatcher sender, DeviceInformation device )
         {
             if ( m_devices.Find( x => x.DeviceId == device.Id ) == null )
+            {
                 Task.Factory.StartNew( async () =>
                     {
                         var boseDevice = new BoseDevice( await BluetoothDevice.FromIdAsync( device.Id ) );
                         m_devices.Add( boseDevice );
+
                         if ( m_quickMenu != null )
+                        {
                             m_quickMenu.OnDeviceAdded( boseDevice );
+                        }
                     } );
+            }
         }
 
         private void OnBluetoothDeviceRemoved( DeviceWatcher sender, DeviceInformationUpdate devInfo )
         {
             m_devices.RemoveAll( x => x.DeviceId == devInfo.Id );
             if ( m_quickMenu != null )
+            {
                 m_quickMenu.OnDeviceRemoved( devInfo.Id );
+            }
         }
 
         /*
