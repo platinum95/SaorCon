@@ -184,7 +184,7 @@ namespace SaorCon
 
         private void connectButton_OnClick( object sender, RoutedEventArgs e )
         {
-            var res = ( (BoseDevice)m_device ).Connect();
+            var res = ( (BoseDeviceDefault)m_device ).Connect();
             connectButton.IsEnabled = false;
 
             Task.Factory.StartNew( () =>

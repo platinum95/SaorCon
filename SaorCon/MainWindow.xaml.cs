@@ -35,7 +35,7 @@ namespace SaorCon
             {
                 Task.Factory.StartNew( async () =>
                     {
-                        var boseDevice = new BoseDevice( await BluetoothDevice.FromIdAsync( device.Id ) );
+                        var boseDevice = new BoseDeviceDefault( await BluetoothDevice.FromIdAsync( device.Id ) );
                         m_devices.Add( boseDevice );
 
                         if ( m_quickMenu != null )

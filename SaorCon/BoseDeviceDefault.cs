@@ -10,7 +10,6 @@ using Windows.Devices.Bluetooth;
 
 namespace SaorCon
 {
-
     public enum BoseCommand
     {
         ConnectCommand,
@@ -18,16 +17,6 @@ namespace SaorCon
         QueryBatteryCommand,
         SetAncCommand
     }
-
-    public enum BoseMessage
-    {
-        ConnectAckMessage,
-        DisconnectMessage,
-        AncLevelMessage,
-        BatteryLevelMessage,
-        Unknown
-    }
-
 
     public class BoseUnsubscriber : IDisposable
     {
@@ -46,45 +35,8 @@ namespace SaorCon
         }
     }
 
-    public interface IBoseDevice : IObservable<BoseMessage>
-    {
-        bool Connected { get; }
-        bool SoftConnect { get; }
-        Int16 AncLevel { get; }
-        Int16 BatteryLevel { get; }
-        string DeviceId { get; }
-        string DeviceName { get; }
 
-        void SetAncLevel( Int16 level );
-    }
-
-    public class TestBoseDevice : IBoseDevice
-    {
-   
-        public void SetAncLevel( Int16 level )
-        {
-
-        }
-
-        public IDisposable Subscribe( IObserver<BoseMessage> observer )
-        {
-            if ( !m_observers.Contains( observer ) )
-                m_observers.Add( observer );
-
-            return new BoseUnsubscriber( m_observers, observer );
-        }
-
-        public bool     Connected       { get; set; } = false;
-        public bool     SoftConnect     { get; set; } = false;
-        public Int16    AncLevel        { get; set; }
-        public Int16    BatteryLevel    { get; set; }
-        public string   DeviceName      { get; } = "Test Device";
-        public string   DeviceId        { get; } = "TestId";
-
-        private List<IObserver<BoseMessage>> m_observers = new List<IObserver<BoseMessage>>();
-    }
-
-    public class BoseDevice : IBoseDevice
+    public class BoseDeviceDefault : IBoseDevice
     {
 
         public bool     Connected       { get => bluetoothClient != null && bluetoothClient.Connected; }
@@ -94,8 +46,7 @@ namespace SaorCon
         public string   DeviceName      { get; private set; } = "Unknown Device";
         public string   DeviceId        { get; } = null;
 
-
-        public BoseDevice( BluetoothDevice device )
+        public BoseDeviceDefault ( BluetoothDevice device )
         {
             bluetoothDevice = device;
             DeviceName = device.Name;
@@ -107,7 +58,7 @@ namespace SaorCon
             bluetoothDevice.ConnectionStatusChanged += DeviceConnectionStateChanged;
         }
 
-        ~BoseDevice()
+        ~BoseDeviceDefault()
         {
             Disconnect();
             bluetoothDevice = null;
@@ -343,7 +294,7 @@ namespace SaorCon
 
             bluetoothStream = bluetoothClient.GetStream();
 
-            SendCommand( BoseCommand.ConnectCommand, force:true );
+            SendCommand( BoseCommand.ConnectCommand, force: true );
             SendCommand( BoseCommand.QueryStatusCommand, force: true );
             SendCommand( BoseCommand.QueryBatteryCommand, force: true );
 
@@ -405,7 +356,7 @@ namespace SaorCon
             { BoseMessage.BatteryLevelMessage,  new byte[] { 0x02, 0x02, 0x03 } }
         };
 
-        delegate void MessageHandler( BoseDevice sender, byte[] payload = null );
+        delegate void MessageHandler( BoseDeviceDefault sender, byte[] payload = null );
 
         private Dictionary<BoseMessage, MessageHandler> m_messageHandlers = new Dictionary<BoseMessage, MessageHandler>()
         {
