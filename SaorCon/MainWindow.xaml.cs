@@ -17,7 +17,7 @@ namespace SaorCon
             "System.Devices.Aep.ProtocolId:=\"{E0CBF06C-CD8B-4647-BB8A-263B43F0F974}\" AND " +
             "(System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#False) AND " +
             "System.DeviceInterface.Bluetooth.VendorId:=158 AND " +
-            "System.DeviceInterface.Bluetooth.ProductId:=16396";
+            "(System.DeviceInterface.Bluetooth.ProductId:=16396 OR System.DeviceInterface.Bluetooth.ProductId:=16416)";
 
         public MainWindow()
         {
