@@ -6,7 +6,7 @@ using System.Windows.Input;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Enumeration;
 using System.Windows.Markup;
-
+using Microsoft.Win32;
 
 namespace SaorCon
 {
@@ -22,11 +22,17 @@ namespace SaorCon
         public MainWindow()
         {
             InitializeComponent();
-            
             m_deviceWatcher = DeviceInformation.CreateWatcher( Qc35Query );
             m_deviceWatcher.Added += OnBluetoothDeviceAdded;
             m_deviceWatcher.Removed += OnBluetoothDeviceRemoved;
             m_deviceWatcher.Start();
+
+            SystemEvents.PowerModeChanged += OnPowerChange;
+        }
+
+        ~MainWindow()
+        {
+            SystemEvents.PowerModeChanged -= OnPowerChange;
         }
 
         private void OnBluetoothDeviceAdded( DeviceWatcher sender, DeviceInformation device )
@@ -69,7 +75,7 @@ namespace SaorCon
             }
 
             m_quickMenu = new SaorConMenu( m_devices );
-            m_quickMenu.Closed += onQuickMenuClosed;
+            m_quickMenu.Closed += OnQuickMenuClosed;
             m_quickMenu.Show();
             m_quickMenu.Focus();
             m_quickMenu.Activate();
@@ -81,9 +87,24 @@ namespace SaorCon
             base.OnClosing( e );
         }
 
-        private void onQuickMenuClosed( object sender, EventArgs e )
+        private void OnQuickMenuClosed( object sender, EventArgs e )
         {
             m_quickMenu = null;
+        }
+
+        private void OnPowerChange ( object s, PowerModeChangedEventArgs e )
+        {
+            switch ( e.Mode )
+            {
+                case PowerModes.Resume:
+                    m_deviceWatcher.Start();
+                    break;
+                case PowerModes.Suspend:
+                    m_quickMenu = null;
+                    m_deviceWatcher.Stop();
+                    m_devices.Clear();
+                    break;
+            }
         }
 
         private SaorConMenu             m_quickMenu;

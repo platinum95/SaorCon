@@ -132,7 +132,7 @@ namespace SaorCon
 
         private void ancSlider_OnValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
         {
-            if ( m_device == null || !m_device.Connected )
+            if ( m_device == null || !m_device.Connected || m_device.AncLevel == anc_slider.Value )
             {
                 Console.WriteLine( $"Ignoring ANC set to {e.NewValue}" );
                 return;
