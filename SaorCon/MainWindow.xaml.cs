@@ -44,12 +44,12 @@ namespace SaorCon
                         device.Properties.TryGetValue( "System.DeviceInterface.Bluetooth.ProductId", out var pidObj );
 
                         var pid = pidObj.ToString();
-                        IBoseDevice boseDevice;
+                        IDevice boseDevice;
                         if ( pid == "16420" )
                             boseDevice = new BoseDeviceNC700( await BluetoothDevice.FromIdAsync( device.Id ) );
                         else
                             boseDevice = new BoseDeviceQC35( await BluetoothDevice.FromIdAsync( device.Id ) );
-                        
+
                         m_devices.Add( boseDevice );
 
                         if ( m_quickMenu != null )
@@ -116,7 +116,7 @@ namespace SaorCon
         }
 
         private SaorConMenu             m_quickMenu;
-        private List<IBoseDevice>       m_devices = new List<IBoseDevice>();
+        private List<IDevice>       m_devices = new List<IDevice>();
         private DeviceWatcher           m_deviceWatcher;
     }
 

@@ -7,19 +7,19 @@ using System.Windows.Media;
 
 namespace SaorCon
 {
-    public partial class DeviceControlBlock : UserControl, IObserver<BoseMessage>
+    public partial class DeviceControlBlock : UserControl, IObserver<DeviceStatusMessage>
     {
         public string   DeviceId        { get => m_device.DeviceId; }
         public bool     IsExpanded      { get; private set; } = false;
-        public string   BatteryLevel    { get => $"{((m_device != null && m_device.Connected) ? m_device.BatteryLevel : Convert.ToInt16(-1))}%"; }
+        public string   BatteryLevel    { get => $"{((m_device != null && m_device.Connected && m_device is IBatteryProvider batteryProvider) ? batteryProvider.BatteryLevel : Convert.ToInt16(-1))}%"; }
 
-        public DeviceControlBlock( IBoseDevice device )
+        public DeviceControlBlock( IDevice device )
         {
             DataContext = this;
             InitializeComponent();
             BatteryLevelText.Text = "";
 
-            device_name.Text = device.DeviceName;
+            device_name.Text = device.DisplayName;
             anc_slider.SelectionStart = 0;
 
             ConnectedGrid.Visibility = Visibility.Collapsed;
@@ -27,15 +27,21 @@ namespace SaorCon
             m_device = device;
             if ( device.SoftConnect )
             {
-                BatteryLevelText.Text = $"{device.BatteryLevel}%";
-                anc_slider.Value = device.AncLevel;
-                anc_slider.SelectionEnd = device.AncLevel;
-                anc_slider.Maximum = device.AncRange - 1;
+                if ( device is IBatteryProvider batteryDevice )
+                {
+                    BatteryLevelText.Text = $"{batteryDevice.BatteryLevel}%";
+                    setBatteryIcon();
+                }
 
-                setAncLevelIcon( device.AncLevel );
-                setBatteryIcon();
+                if ( device is IAncProvider ancDevice )
+                {
+                    anc_slider.Value = ancDevice.AncLevel;
+                    anc_slider.SelectionEnd = ancDevice.AncLevel;
+                    anc_slider.Maximum = ancDevice.AncRange - 1;
+                    setAncLevelIcon( ancDevice.AncLevel );
+                }
             }
-            
+
             m_unsubscriber = m_device.Subscribe( this );
 
             MouseEventHandler hoverStateHandler = delegate { Background = getBackgroundColour(); };
@@ -78,7 +84,7 @@ namespace SaorCon
                 this.Background = ThemeManager.SelectedBase;
         }
 
-        public void OnNext(BoseMessage value)
+        public void OnNext( DeviceStatusMessage value )
         {
             if ( !this.IsInitialized )
             {
@@ -89,7 +95,7 @@ namespace SaorCon
             {
                 switch ( value )
                 {
-                    case BoseMessage.ConnectAckMessage:
+                    case DeviceStatusMessage.ConnectAck:
                         if (IsExpanded)
                         {
                             DisconnectedGrid.Visibility = Visibility.Collapsed;
@@ -97,7 +103,7 @@ namespace SaorCon
                         }
                         break;
 
-                    case BoseMessage.DisconnectMessage:
+                    case DeviceStatusMessage.Disconnected:
                         if (IsExpanded)
                         {
                             ConnectedGrid.Visibility = Visibility.Collapsed;
@@ -105,16 +111,22 @@ namespace SaorCon
                         }
                         break;
 
-                    case BoseMessage.BatteryLevelMessage:
-                        BatteryLevelText.Text = $"{m_device.BatteryLevel}%";
-                        setBatteryIcon();
+                    case DeviceStatusMessage.BatteryLevel:
+                        if ( m_device is IBatteryProvider batteryDevice )
+                        {
+                            BatteryLevelText.Text = $"{batteryDevice.BatteryLevel}%";
+                            setBatteryIcon();
+                        }
                         break;
 
-                    case BoseMessage.AncLevelMessage:
-                        anc_slider.SelectionEnd = m_device.AncLevel;
-                        if (!m_ancSet)
+                    case DeviceStatusMessage.AncLevel:
+                        if ( m_device is IAncProvider ancDevice )
                         {
-                            anc_slider.Value = m_device.AncLevel;
+                            anc_slider.SelectionEnd = ancDevice.AncLevel;
+                            if ( !m_ancSet )
+                            {
+                                anc_slider.Value = ancDevice.AncLevel;
+                            }
                         }
                         break;
                 }
@@ -133,7 +145,7 @@ namespace SaorCon
 
         private void ancSlider_OnValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
         {
-            if ( m_device == null || !m_device.Connected || m_device.AncLevel == anc_slider.Value )
+            if ( m_device == null || !m_device.Connected || !(m_device is IAncProvider ancProvider) || ancProvider.AncLevel == anc_slider.Value )
             {
                 Console.WriteLine( $"Ignoring ANC set to {e.NewValue}" );
                 return;
@@ -142,7 +154,7 @@ namespace SaorCon
             m_ancSet = true;
             var newLevel = Convert.ToInt16( e.NewValue );
             Console.WriteLine( $"Attempting ANC set to {newLevel}" );
-            m_device.SetAncLevel( newLevel );
+            ancProvider.SetAncLevel( newLevel );
             setAncLevelIcon( newLevel );
         }
 
@@ -163,11 +175,14 @@ namespace SaorCon
 
         private void setBatteryIcon()
         {
+            if ( !(m_device is IBatteryProvider batteryProvider ) )
+                return;
+
             BatteryLevelHigh.Visibility = Visibility.Hidden;
             BatteryLevelMid.Visibility = Visibility.Hidden;
             BatteryLevelLow.Visibility = Visibility.Hidden;
 
-            var batteryLevel = m_device.BatteryLevel;
+            var batteryLevel = batteryProvider.BatteryLevel;
 
             if ( batteryLevel < 30 )
             {
@@ -207,7 +222,7 @@ namespace SaorCon
 
         private bool            m_isAlone;
         private IDisposable     m_unsubscriber;
-        private IBoseDevice     m_device;
+        private IDevice         m_device;
         private bool            m_ancSet = false;
     }
 }

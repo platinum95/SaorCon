@@ -20,7 +20,7 @@ namespace SaorCon
     /// </summary>
     public partial class SaorConMenu : Window
     {
-        public SaorConMenu( List<IBoseDevice> devices )
+        public SaorConMenu( List<IDevice> devices )
         {
             InitializeComponent();
             m_devices = devices;
@@ -37,11 +37,9 @@ namespace SaorCon
 
                 mainStack.Children.Add( controlBlock );
             }
-
-            
         }
 
-        public void OnDeviceAdded( IBoseDevice device )
+        public void OnDeviceAdded( IDevice device )
         {
             var controlBlock = new DeviceControlBlock( device );
             controlBlock.MouseLeftButtonUp += ChildClicked;
@@ -96,6 +94,6 @@ namespace SaorCon
             mainStack.Children.Clear();
         }
 
-        private List<IBoseDevice> m_devices;
+        private List<IDevice> m_devices;
     }
 }

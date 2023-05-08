@@ -36,20 +36,19 @@ namespace SaorCon
         }
     }
 
-    public abstract class BoseBluetoothDevice<T,Command,Message>
-        where T : BoseBluetoothDevice<T, Command, Message>
+    public abstract class BoseBluetoothDevice<T,Command> : IDevice
+        where T : BoseBluetoothDevice<T, Command>
         where Command : Enum
-        where Message : Enum
     {
         public bool     Connected   { get => bluetoothClient != null && bluetoothClient.Connected; }
-        public string   DeviceName  { get; private set; } = "Unknown Device";
+        public string   DisplayName { get; private set; } = "Unknown Device";
         public string   DeviceId    { get; } = null;
         public bool     SoftConnect { get; protected set; } = false;
 
         public BoseBluetoothDevice( BluetoothDevice device )
         {
             bluetoothDevice = device;
-            DeviceName = device.Name;
+            DisplayName = device.Name;
             DeviceId = device.DeviceId;
 
             if ( bluetoothDevice.ConnectionStatus == BluetoothConnectionStatus.Connected )
@@ -85,9 +84,10 @@ namespace SaorCon
             bluetoothClient = null;
             SoftConnect = false;
 
-            // TODO 
-       //     foreach ( var observer in m_observers )
-       //         observer.OnNext( Message.DisconnectMessage );
+            foreach ( var observer in m_observers )
+            {
+                observer.OnNext( DeviceStatusMessage.Disconnected );
+            }
         }
 
         private async Task<IAsyncResult> DelayedRequest( CancellationToken token )
@@ -156,7 +156,7 @@ namespace SaorCon
             }
         }
 
-        private bool TryGetMessageFromHeader( byte[] header, out Message message )
+        private bool TryGetMessageFromHeader( byte[] header, out DeviceStatusMessage message )
         {
             message = default;
             if ( header.Length < 3 )
@@ -281,20 +281,20 @@ namespace SaorCon
                 Disconnect();
         }
 
-        public IDisposable Subscribe( IObserver<Message> observer )
+        public IDisposable Subscribe( IObserver<DeviceStatusMessage> observer )
         {
             if ( !m_observers.Contains( observer ) )
                 m_observers.Add( observer );
 
-            return new BoseUnsubscriber<Message>( m_observers, observer );
+            return new BoseUnsubscriber<DeviceStatusMessage>( m_observers, observer );
         }
 
         protected abstract Dictionary<Command, byte[]> CommandCodes { get; }
-        protected abstract Dictionary<Message, byte[]> MessageCodes { get; }
+        protected abstract Dictionary<DeviceStatusMessage, byte[]> MessageCodes { get; }
 
         protected delegate void MessageHandler( T sender, byte[] payload = null );
-        protected abstract Dictionary<Message, MessageHandler> m_messageHandlers { get; }
-        protected List<IObserver<Message>> m_observers = new List<IObserver<Message>>();
+        protected abstract Dictionary<DeviceStatusMessage, MessageHandler> m_messageHandlers { get; }
+        protected List<IObserver<DeviceStatusMessage>> m_observers = new List<IObserver<DeviceStatusMessage>>();
 
         private BluetoothDevice bluetoothDevice;
         private BluetoothClient bluetoothClient;
@@ -309,7 +309,7 @@ namespace SaorCon
     }
 
 
-    public class BoseDeviceQC35 : BoseBluetoothDevice<BoseDeviceQC35, BoseCommand, BoseMessage>, IBoseDevice
+    public class BoseDeviceQC35 : BoseBluetoothDevice<BoseDeviceQC35, BoseCommand>, IBatteryProvider, IAncProvider
     {
         public Int16 AncLevel { get; private set; } = -1;
         public Int16 BatteryLevel { get; private set; } = -1;
@@ -317,14 +317,6 @@ namespace SaorCon
 
         public BoseDeviceQC35( BluetoothDevice device ) : base( device )
         {}
-
-        protected override void Disconnect()
-        {
-            base.Disconnect();
-
-            foreach ( var observer in m_observers )
-                observer.OnNext( BoseMessage.DisconnectMessage );
-        }
 
         protected override void OnConnected( IAsyncResult result )
         {
@@ -389,24 +381,24 @@ namespace SaorCon
             { BoseCommand.SetAncCommand,       new byte[] { 0x01, 0x06, 0x02 } }
         };
 
-        protected override Dictionary<BoseMessage, byte[]> MessageCodes { get; } = new Dictionary<BoseMessage, byte[]>
+        protected override Dictionary<DeviceStatusMessage, byte[]> MessageCodes { get; } = new Dictionary<DeviceStatusMessage, byte[]>
         {
-            { BoseMessage.ConnectAckMessage,    new byte[] { 0x00, 0x01, 0x03 } },
-            { BoseMessage.AncLevelMessage,      new byte[] { 0x01, 0x06, 0x03 } },
-            { BoseMessage.BatteryLevelMessage,  new byte[] { 0x02, 0x02, 0x03 } }
+            { DeviceStatusMessage.ConnectAck,    new byte[] { 0x00, 0x01, 0x03 } },
+            { DeviceStatusMessage.AncLevel,      new byte[] { 0x01, 0x06, 0x03 } },
+            { DeviceStatusMessage.BatteryLevel,  new byte[] { 0x02, 0x02, 0x03 } }
         };
 
-        protected override Dictionary<BoseMessage, MessageHandler> m_messageHandlers { get; } = new Dictionary<BoseMessage, MessageHandler>()
+        protected override Dictionary<DeviceStatusMessage, MessageHandler> m_messageHandlers { get; } = new Dictionary<DeviceStatusMessage, MessageHandler>()
         {
-            { BoseMessage.ConnectAckMessage, new MessageHandler( (sender, p) => sender.SoftConnect = true ) },
-            { BoseMessage.AncLevelMessage, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
-            { BoseMessage.BatteryLevelMessage, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
+            { DeviceStatusMessage.ConnectAck, new MessageHandler( (sender, p) => sender.SoftConnect = true ) },
+            { DeviceStatusMessage.AncLevel, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
+            { DeviceStatusMessage.BatteryLevel, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
         };
 
         private Int16 m_ancLevelSet = -1;
     }
 
-    public class BoseDeviceNC700 : BoseBluetoothDevice<BoseDeviceNC700, BoseCommand, BoseMessage>, IBoseDevice
+    public class BoseDeviceNC700 : BoseBluetoothDevice<BoseDeviceNC700, BoseCommand>, IBatteryProvider, IAncProvider
     {
         public Int16 AncLevel { get; private set; } = -1;
         public Int16 BatteryLevel { get; private set; } = -1;
@@ -414,14 +406,6 @@ namespace SaorCon
 
         public BoseDeviceNC700( BluetoothDevice device ) : base( device )
         { }
-
-        protected override void Disconnect()
-        {
-            base.Disconnect();
-
-            foreach ( var observer in m_observers )
-                observer.OnNext( BoseMessage.DisconnectMessage );
-        }
 
         protected override void OnConnected( IAsyncResult result )
         {
@@ -486,18 +470,18 @@ namespace SaorCon
             { BoseCommand.SetAncCommand,       new byte[] { 0x01, 0x05, 0x02 } }
         };
 
-        protected override Dictionary<BoseMessage, byte[]> MessageCodes { get; } = new Dictionary<BoseMessage, byte[]>
+        protected override Dictionary<DeviceStatusMessage, byte[]> MessageCodes { get; } = new Dictionary<DeviceStatusMessage, byte[]>
         {
-            { BoseMessage.ConnectAckMessage,    new byte[] { 0x00, 0x01, 0x03 } },
-            { BoseMessage.AncLevelMessage,      new byte[] { 0x01, 0x05, 0x03 } },
-            { BoseMessage.BatteryLevelMessage,  new byte[] { 0x02, 0x02, 0x03 } }
+            { DeviceStatusMessage.ConnectAck,    new byte[] { 0x00, 0x01, 0x03 } },
+            { DeviceStatusMessage.AncLevel,      new byte[] { 0x01, 0x05, 0x03 } },
+            { DeviceStatusMessage.BatteryLevel,  new byte[] { 0x02, 0x02, 0x03 } }
         };
 
-        protected override Dictionary<BoseMessage, MessageHandler> m_messageHandlers { get; } = new Dictionary<BoseMessage, MessageHandler>()
+        protected override Dictionary<DeviceStatusMessage, MessageHandler> m_messageHandlers { get; } = new Dictionary<DeviceStatusMessage, MessageHandler>()
         {
-            { BoseMessage.ConnectAckMessage, new MessageHandler( (sender, p) => sender.SoftConnect = true ) },
-            { BoseMessage.AncLevelMessage, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
-            { BoseMessage.BatteryLevelMessage, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
+            { DeviceStatusMessage.ConnectAck, new MessageHandler( (sender, p) => sender.SoftConnect = true ) },
+            { DeviceStatusMessage.AncLevel, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
+            { DeviceStatusMessage.BatteryLevel, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
         };
 
         private Int16 m_ancLevelSet = -1;
