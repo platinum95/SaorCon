@@ -1,5 +1,5 @@
 # SaorCon
-#### _Windows utility for Bose QC35 Headphones_
+#### _Windows utility for Bose QC35 and NC700 Headphones_
 ![SaorCon Screenshot](https://i.imgur.com/mXyAacB.jpg)
 
 ## Current Status
