@@ -30,6 +30,7 @@ namespace SaorCon
                 BatteryLevelText.Text = $"{device.BatteryLevel}%";
                 anc_slider.Value = device.AncLevel;
                 anc_slider.SelectionEnd = device.AncLevel;
+                anc_slider.Maximum = device.AncRange - 1;
 
                 setAncLevelIcon( device.AncLevel );
                 setBatteryIcon();
@@ -184,7 +185,7 @@ namespace SaorCon
 
         private void connectButton_OnClick( object sender, RoutedEventArgs e )
         {
-            var res = ( (BoseDeviceDefault)m_device ).Connect();
+            var res = ( (BoseDeviceQC35)m_device ).Connect();
             connectButton.IsEnabled = false;
 
             Task.Factory.StartNew( () =>

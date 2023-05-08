@@ -19,7 +19,9 @@ namespace SaorCon
         Int16 BatteryLevel { get; }
         string DeviceId { get; }
         string DeviceName { get; }
+        Int16 AncRange { get; }
 
         void SetAncLevel ( Int16 level );
+
     }
 }

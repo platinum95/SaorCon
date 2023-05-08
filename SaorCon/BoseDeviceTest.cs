@@ -15,7 +15,7 @@ namespace SaorCon
             if ( !m_observers.Contains( observer ) )
                 m_observers.Add( observer );
 
-            return new BoseUnsubscriber( m_observers, observer );
+            return new BoseUnsubscriber<BoseMessage>( m_observers, observer );
         }
 
         public bool Connected { get; set; } = false;
@@ -24,6 +24,7 @@ namespace SaorCon
         public Int16 BatteryLevel { get; set; }
         public string DeviceName { get; } = "Test Device";
         public string DeviceId { get; } = "TestId";
+        public Int16 AncRange { get; } = 16;
 
         private List<IObserver<BoseMessage>> m_observers = new List<IObserver<BoseMessage>>();
     }

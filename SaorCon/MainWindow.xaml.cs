@@ -17,12 +17,12 @@ namespace SaorCon
             "System.Devices.Aep.ProtocolId:=\"{E0CBF06C-CD8B-4647-BB8A-263B43F0F974}\" AND " +
             "(System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True OR System.Devices.Aep.Bluetooth.IssueInquiry:=System.StructuredQueryType.Boolean#False) AND " +
             "System.DeviceInterface.Bluetooth.VendorId:=158 AND " +
-            "(System.DeviceInterface.Bluetooth.ProductId:=16396 OR System.DeviceInterface.Bluetooth.ProductId:=16416)";
+            "(System.DeviceInterface.Bluetooth.ProductId:=16396 OR System.DeviceInterface.Bluetooth.ProductId:=16416 OR System.DeviceInterface.Bluetooth.ProductId:=16420)";
 
         public MainWindow()
         {
             InitializeComponent();
-            m_deviceWatcher = DeviceInformation.CreateWatcher( Qc35Query );
+            m_deviceWatcher = DeviceInformation.CreateWatcher( Qc35Query, new List<string>() { "System.DeviceInterface.Bluetooth.ProductId" } );
             m_deviceWatcher.Added += OnBluetoothDeviceAdded;
             m_deviceWatcher.Removed += OnBluetoothDeviceRemoved;
             m_deviceWatcher.Start();
@@ -41,7 +41,15 @@ namespace SaorCon
             {
                 Task.Factory.StartNew( async () =>
                     {
-                        var boseDevice = new BoseDeviceDefault( await BluetoothDevice.FromIdAsync( device.Id ) );
+                        device.Properties.TryGetValue( "System.DeviceInterface.Bluetooth.ProductId", out var pidObj );
+
+                        var pid = pidObj.ToString();
+                        IBoseDevice boseDevice;
+                        if ( pid == "16420" )
+                            boseDevice = new BoseDeviceNC700( await BluetoothDevice.FromIdAsync( device.Id ) );
+                        else
+                            boseDevice = new BoseDeviceQC35( await BluetoothDevice.FromIdAsync( device.Id ) );
+                        
                         m_devices.Add( boseDevice );
 
                         if ( m_quickMenu != null )

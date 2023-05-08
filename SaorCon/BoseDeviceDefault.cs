@@ -18,12 +18,13 @@ namespace SaorCon
         SetAncCommand
     }
 
-    public class BoseUnsubscriber : IDisposable
+    public class BoseUnsubscriber<Message> : IDisposable
+        where Message : Enum
     {
-        private List<IObserver<BoseMessage>> _observers;
-        private IObserver<BoseMessage> _observer;
+        private List<IObserver<Message>> _observers;
+        private IObserver<Message> _observer;
 
-        public BoseUnsubscriber( List<IObserver<BoseMessage>> observers, IObserver<BoseMessage> observer )
+        public BoseUnsubscriber( List<IObserver<Message>> observers, IObserver<Message> observer )
         {
             this._observers = observers;
             this._observer = observer;
@@ -35,18 +36,17 @@ namespace SaorCon
         }
     }
 
-
-    public class BoseDeviceDefault : IBoseDevice
+    public abstract class BoseBluetoothDevice<T,Command,Message>
+        where T : BoseBluetoothDevice<T, Command, Message>
+        where Command : Enum
+        where Message : Enum
     {
+        public bool     Connected   { get => bluetoothClient != null && bluetoothClient.Connected; }
+        public string   DeviceName  { get; private set; } = "Unknown Device";
+        public string   DeviceId    { get; } = null;
+        public bool     SoftConnect { get; protected set; } = false;
 
-        public bool     Connected       { get => bluetoothClient != null && bluetoothClient.Connected; }
-        public bool     SoftConnect     { get; private set; } = false;
-        public Int16    AncLevel        { get; private set; } = -1;
-        public Int16    BatteryLevel    { get; private set; } = -1;
-        public string   DeviceName      { get; private set; } = "Unknown Device";
-        public string   DeviceId        { get; } = null;
-
-        public BoseDeviceDefault ( BluetoothDevice device )
+        public BoseBluetoothDevice( BluetoothDevice device )
         {
             bluetoothDevice = device;
             DeviceName = device.Name;
@@ -58,13 +58,13 @@ namespace SaorCon
             bluetoothDevice.ConnectionStatusChanged += DeviceConnectionStateChanged;
         }
 
-        ~BoseDeviceDefault()
+        ~BoseBluetoothDevice()
         {
             Disconnect();
             bluetoothDevice = null;
         }
 
-        private void Disconnect()
+        protected virtual void Disconnect()
         {
             m_readTaskCancellation.Cancel();
             m_requestTaskToken?.Cancel();
@@ -85,29 +85,9 @@ namespace SaorCon
             bluetoothClient = null;
             SoftConnect = false;
 
-            foreach ( var observer in m_observers )
-                observer.OnNext( BoseMessage.DisconnectMessage );
-        }
-
-        public void SetAncLevel( Int16 level )
-        {
-            if ( !Connected )
-                return;
-
-            if ( level == 1 )
-                level = 3;
-            else if ( level == 2 )
-                level = 1;
-            else if ( level != 0 )
-                throw new ArgumentOutOfRangeException( "Invalid ANC level" );
-
-            if ( m_ancLevelSet == level )
-                return;
-
-            m_ancLevelSet = level;
-            SendCommand( BoseCommand.SetAncCommand, new byte[] { Convert.ToByte( level ) } );
-            
-            // TODO - set task to trigger after ~1 second to call this function again if level ACK not received
+            // TODO 
+       //     foreach ( var observer in m_observers )
+       //         observer.OnNext( Message.DisconnectMessage );
         }
 
         private async Task<IAsyncResult> DelayedRequest( CancellationToken token )
@@ -125,14 +105,14 @@ namespace SaorCon
             return Task.FromResult( result );
         }
 
-        private IAsyncResult SendCommand( BoseCommand command, byte[] payload = null, bool force = false )
+        protected IAsyncResult SendCommand( Command command, byte[] payload = null, bool force = false )
         {
             // TODO - these should be sent to a fixed-size buffer to avoid a barrage of requests
             if ( !bluetoothClient.Connected )
                 throw new Exception();
 
             var currentTime = Convert.ToUInt64( new TimeSpan( DateTime.Now.Ticks ).TotalMilliseconds );
-            if( !force && currentTime < m_requestCooldown )
+            if ( !force && currentTime < m_requestCooldown )
             {
                 m_requestCooldown = currentTime + 100;
 
@@ -140,16 +120,16 @@ namespace SaorCon
                 m_requestTaskToken = new CancellationTokenSource();
 
                 m_requestMutex.WaitOne();
-                m_requestBuffer = new Tuple<BoseCommand, byte[]>(command, payload);
+                m_requestBuffer = new Tuple<Command, byte[]>( command, payload );
                 m_requestMutex.ReleaseMutex();
 
                 CancellationToken token = m_requestTaskToken.Token;
-                return Task.Run( async () => { await DelayedRequest(token); }, m_requestTaskToken.Token );
+                return Task.Run( async () => { await DelayedRequest( token ); }, m_requestTaskToken.Token );
             }
 
             m_requestCooldown = currentTime + 100;
 
-            var baseCode = BoseCommandCodes[command];
+            var baseCode = CommandCodes[command];
             byte payloadLength = ( payload != null ) ? Convert.ToByte( payload.Length ) : (byte)0;
 
             var finalCommandLength = baseCode.Length + payloadLength + 1;
@@ -170,31 +150,38 @@ namespace SaorCon
             {
                 bluetoothStream.EndWrite( result );
             }
-            catch( Exception )
+            catch ( Exception )
             {
                 // TODO
             }
         }
 
-        private BoseMessage GetMessageFromHeader( byte[] header )
+        private bool TryGetMessageFromHeader( byte[] header, out Message message )
         {
-            if( header.Length < 3 )
+            message = default;
+            if ( header.Length < 3 )
             {
-                // TODO
-                return BoseMessage.Unknown;
+                return false;
             }
 
-            foreach( var messagePair in BoseMessageCodes )
+            foreach ( var messagePair in MessageCodes )
             {
                 bool found = true;
                 for ( int i = 0; i < 3; ++i )
+                {
                     if ( !( found = ( header[i] == messagePair.Value[i] ) ) )
+                    {
                         break;
+                    }
+                }
                 if ( found )
-                    return messagePair.Key;
+                {
+                    message = messagePair.Key;
+                    return true;
+                }
             }
 
-            return BoseMessage.Unknown;
+            return false;
         }
 
         private byte[] GetPayloadFromHeader( byte[] header )
@@ -205,7 +192,7 @@ namespace SaorCon
                 return null;
             }
             var payloadLength = header[3];
-            
+
             if ( payloadLength == 0 )
                 return null;
 
@@ -213,31 +200,6 @@ namespace SaorCon
             bluetoothStream.Read( payload, 0, payload.Length );
             // TODO - don't hang
             return payload;
-
-        }
-
-        private static Int16 ConvertBatteryLevel( byte[] payload )
-        {
-            if ( payload.Length != 1 )
-                //TODO
-                return -1;
-
-            return Convert.ToInt16( payload[0] );
-        }
-
-        private static Int16 ConvertAncLevel( byte[] payload )
-        {
-            if ( payload.Length != 2 )
-                //TODO
-                return -1;
-
-            Int16 level = Convert.ToInt16( payload[0] );
-
-            if ( level == 1 ) level = 2;
-            else if ( level == 3 ) level = 1;
-            else if ( level != 0 ) throw new ArgumentException( $"Received invalid ANC level: {level}" );
-
-            return level;
         }
 
         private void ReadIncomingMessages()
@@ -251,13 +213,13 @@ namespace SaorCon
                 bluetoothStream.Read( header, 0, header.Length );
 
                 // TODO - combine these
-                BoseMessage message = GetMessageFromHeader( header );
+                var knownMessage = TryGetMessageFromHeader( header, out var message );
                 var payload = GetPayloadFromHeader( header );
 
-                if ( message == BoseMessage.Unknown )
+                if ( !knownMessage )
                     continue;
 
-                m_messageHandlers[message]( this, payload );
+                m_messageHandlers[message]( (T)this, payload );
 
                 foreach ( var observer in m_observers )
                     observer.OnNext( message );
@@ -277,7 +239,7 @@ namespace SaorCon
             return bluetoothClient.BeginConnect( bluetoothEndPoint, new AsyncCallback( OnConnected ), null );
         }
 
-        private void OnConnected( IAsyncResult result )
+        protected virtual void OnConnected( IAsyncResult result )
         {
             try
             {
@@ -294,20 +256,16 @@ namespace SaorCon
 
             bluetoothStream = bluetoothClient.GetStream();
 
-            SendCommand( BoseCommand.ConnectCommand, force: true );
-            SendCommand( BoseCommand.QueryStatusCommand, force: true );
-            SendCommand( BoseCommand.QueryBatteryCommand, force: true );
-
             m_readTaskCancellation = new CancellationTokenSource();
             var token = m_readTaskCancellation.Token;
             Task.Factory.StartNew( () =>
+            {
+                while ( Connected && !token.IsCancellationRequested )
                 {
-                    while ( Connected && !token.IsCancellationRequested )
-                    {
-                        ReadIncomingMessages();
-                        Thread.Sleep( 1000 );
-                    }
-                }, token );            
+                    ReadIncomingMessages();
+                    Thread.Sleep( 1000 );
+                }
+            }, token );
         }
 
         private void DeviceConnectionStateChanged( BluetoothDevice sender, object args )
@@ -323,25 +281,107 @@ namespace SaorCon
                 Disconnect();
         }
 
-        public IDisposable Subscribe( IObserver<BoseMessage> observer )
+        public IDisposable Subscribe( IObserver<Message> observer )
         {
             if ( !m_observers.Contains( observer ) )
                 m_observers.Add( observer );
 
-            return new BoseUnsubscriber( m_observers, observer );
+            return new BoseUnsubscriber<Message>( m_observers, observer );
         }
 
-        private Int16 m_ancLevelSet = -1;
+        protected abstract Dictionary<Command, byte[]> CommandCodes { get; }
+        protected abstract Dictionary<Message, byte[]> MessageCodes { get; }
+
+        protected delegate void MessageHandler( T sender, byte[] payload = null );
+        protected abstract Dictionary<Message, MessageHandler> m_messageHandlers { get; }
+        protected List<IObserver<Message>> m_observers = new List<IObserver<Message>>();
+
         private BluetoothDevice bluetoothDevice;
         private BluetoothClient bluetoothClient;
         private NetworkStream bluetoothStream;
         private CancellationTokenSource m_readTaskCancellation = new CancellationTokenSource();
 
-        private List<IObserver<BoseMessage>> m_observers = new List<IObserver<BoseMessage>>();
-
         private static readonly int BoseRFCommChannel = 8;
+        private ulong m_requestCooldown = 0;
+        private Tuple<Command, byte[]> m_requestBuffer;
+        private CancellationTokenSource m_requestTaskToken = new CancellationTokenSource();
+        private Mutex m_requestMutex = new Mutex();
+    }
 
-        private static readonly Dictionary<BoseCommand, byte[]> BoseCommandCodes = new Dictionary<BoseCommand, byte[]>
+
+    public class BoseDeviceQC35 : BoseBluetoothDevice<BoseDeviceQC35, BoseCommand, BoseMessage>, IBoseDevice
+    {
+        public Int16 AncLevel { get; private set; } = -1;
+        public Int16 BatteryLevel { get; private set; } = -1;
+        public Int16 AncRange { get; } = 3;
+
+        public BoseDeviceQC35( BluetoothDevice device ) : base( device )
+        {}
+
+        protected override void Disconnect()
+        {
+            base.Disconnect();
+
+            foreach ( var observer in m_observers )
+                observer.OnNext( BoseMessage.DisconnectMessage );
+        }
+
+        protected override void OnConnected( IAsyncResult result )
+        {
+            base.OnConnected( result );
+            SendCommand( BoseCommand.ConnectCommand, force: true );
+            SendCommand( BoseCommand.QueryStatusCommand, force: true );
+            SendCommand( BoseCommand.QueryBatteryCommand, force: true );
+        }
+
+        public void SetAncLevel( short level )
+        {
+            if ( !Connected )
+                return;
+
+            if ( level == 1 )
+                level = 3;
+            else if ( level == 2 )
+                level = 1;
+            else if ( level != 0 )
+                throw new ArgumentOutOfRangeException( "Invalid ANC level" );
+
+            if ( m_ancLevelSet == level )
+                return;
+
+            m_ancLevelSet = level;
+            SendCommand( BoseCommand.SetAncCommand, new byte[] { Convert.ToByte( level ) } );
+        }
+
+        private static Int16 ConvertAncLevel( byte[] payload )
+        {
+            if ( payload.Length != 2 )
+            {
+                //TODO
+                return -1;
+            }
+
+            Int16 level = Convert.ToInt16( payload[0] );
+
+            if ( level == 1 ) level = 2;
+            else if ( level == 3 ) level = 1;
+            else if ( level != 0 ) throw new ArgumentException( $"Received invalid ANC level: {level}" );
+
+            return level;
+        }
+
+        private static Int16 ConvertBatteryLevel( byte[] payload )
+        {
+            if ( payload.Length != 1 )
+            {
+                //TODO
+                return -1;
+            }
+
+            return Convert.ToInt16( payload[0] );
+        }
+
+        protected override Dictionary<BoseCommand, byte[]> CommandCodes { get; } = new Dictionary<BoseCommand, byte[]>
         {
             { BoseCommand.ConnectCommand,      new byte[] { 0x00, 0x01, 0x01 } },
             { BoseCommand.QueryStatusCommand,  new byte[] { 0x01, 0x01, 0x05 } },
@@ -349,25 +389,117 @@ namespace SaorCon
             { BoseCommand.SetAncCommand,       new byte[] { 0x01, 0x06, 0x02 } }
         };
 
-        private static readonly Dictionary<BoseMessage, byte[]> BoseMessageCodes = new Dictionary<BoseMessage, byte[]>
+        protected override Dictionary<BoseMessage, byte[]> MessageCodes { get; } = new Dictionary<BoseMessage, byte[]>
         {
             { BoseMessage.ConnectAckMessage,    new byte[] { 0x00, 0x01, 0x03 } },
             { BoseMessage.AncLevelMessage,      new byte[] { 0x01, 0x06, 0x03 } },
             { BoseMessage.BatteryLevelMessage,  new byte[] { 0x02, 0x02, 0x03 } }
         };
 
-        delegate void MessageHandler( BoseDeviceDefault sender, byte[] payload = null );
-
-        private Dictionary<BoseMessage, MessageHandler> m_messageHandlers = new Dictionary<BoseMessage, MessageHandler>()
+        protected override Dictionary<BoseMessage, MessageHandler> m_messageHandlers { get; } = new Dictionary<BoseMessage, MessageHandler>()
         {
             { BoseMessage.ConnectAckMessage, new MessageHandler( (sender, p) => sender.SoftConnect = true ) },
             { BoseMessage.AncLevelMessage, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
             { BoseMessage.BatteryLevelMessage, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
         };
 
-        private ulong m_requestCooldown = 0;
-        private Tuple<BoseCommand, byte[]> m_requestBuffer;
-        private CancellationTokenSource m_requestTaskToken = new CancellationTokenSource();
-        private Mutex m_requestMutex = new Mutex();
+        private Int16 m_ancLevelSet = -1;
+    }
+
+    public class BoseDeviceNC700 : BoseBluetoothDevice<BoseDeviceNC700, BoseCommand, BoseMessage>, IBoseDevice
+    {
+        public Int16 AncLevel { get; private set; } = -1;
+        public Int16 BatteryLevel { get; private set; } = -1;
+        public Int16 AncRange { get; } = 10;
+
+        public BoseDeviceNC700( BluetoothDevice device ) : base( device )
+        { }
+
+        protected override void Disconnect()
+        {
+            base.Disconnect();
+
+            foreach ( var observer in m_observers )
+                observer.OnNext( BoseMessage.DisconnectMessage );
+        }
+
+        protected override void OnConnected( IAsyncResult result )
+        {
+            base.OnConnected( result );
+            SendCommand( BoseCommand.ConnectCommand, force: true );
+            SendCommand( BoseCommand.QueryStatusCommand, force: true );
+            SendCommand( BoseCommand.QueryBatteryCommand, force: true );
+        }
+
+        public void SetAncLevel( Int16 level )
+        {
+            if ( !Connected )
+                return;
+
+            if ( level > 10 || level < 0 )
+                throw new ArgumentOutOfRangeException( "Invalid ANC level" );
+
+            var convertedLevel = (short)( 10 - level );
+            if ( m_ancLevelSet == convertedLevel )
+                return;
+
+            m_ancLevelSet = convertedLevel;
+            AncLevel = level;
+            SendCommand( BoseCommand.SetAncCommand, new byte[] { Convert.ToByte( convertedLevel ), Convert.ToByte( true ) } );
+            // TODO - set task to trigger after ~1 second to call this function again if level ACK not received
+        }
+
+        private static Int16 ConvertAncLevel( byte[] payload )
+        {
+            if ( payload.Length != 3 )
+            {
+                //TODO
+                return -1;
+            }
+
+            Int16 level = Convert.ToInt16( payload[1] );
+
+            level = (short)(10 - level);
+            return level;
+        }
+
+        private static Int16 ConvertBatteryLevel( byte[] payload )
+        {
+            if ( payload.Length != 4 )
+            {
+                //TODO
+                return -1;
+            }
+
+            // First byte is battery from 00-100
+            // Second & third bytes seem to be another battery report, from 0000 - 1023
+            // Fourth byte seems to be 0 always? Maybe charging flag?
+            // Ignore all but the first byte, the rest aren't useful to us yet
+            return Convert.ToInt16( payload[0] );
+        }
+
+        protected override Dictionary<BoseCommand, byte[]> CommandCodes { get; } = new Dictionary<BoseCommand, byte[]>
+        {
+            { BoseCommand.ConnectCommand,      new byte[] { 0x00, 0x01, 0x01 } },
+            { BoseCommand.QueryStatusCommand,  new byte[] { 0x01, 0x01, 0x05 } },
+            { BoseCommand.QueryBatteryCommand, new byte[] { 0x02, 0x02, 0x01 } },
+            { BoseCommand.SetAncCommand,       new byte[] { 0x01, 0x05, 0x02 } }
+        };
+
+        protected override Dictionary<BoseMessage, byte[]> MessageCodes { get; } = new Dictionary<BoseMessage, byte[]>
+        {
+            { BoseMessage.ConnectAckMessage,    new byte[] { 0x00, 0x01, 0x03 } },
+            { BoseMessage.AncLevelMessage,      new byte[] { 0x01, 0x05, 0x03 } },
+            { BoseMessage.BatteryLevelMessage,  new byte[] { 0x02, 0x02, 0x03 } }
+        };
+
+        protected override Dictionary<BoseMessage, MessageHandler> m_messageHandlers { get; } = new Dictionary<BoseMessage, MessageHandler>()
+        {
+            { BoseMessage.ConnectAckMessage, new MessageHandler( (sender, p) => sender.SoftConnect = true ) },
+            { BoseMessage.AncLevelMessage, new MessageHandler( (sender, p) => sender.AncLevel = ConvertAncLevel(p) ) },
+            { BoseMessage.BatteryLevelMessage, new MessageHandler( (sender, p) => sender.BatteryLevel = ConvertBatteryLevel(p) ) }
+        };
+
+        private Int16 m_ancLevelSet = -1;
     }
 }
